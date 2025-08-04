@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Приключения Феди</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #fff;
+            --shadow-color-1: #ff00ff;
+            --shadow-color-2: #00ffff;
+            --danger-color: #ff0000;
+            --success-color: #00ff00;
+            --background-dark: #1e1e1e;
+            --background-light: #282c34;
+            --ground-color: #4a4a4a;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: var(--background-dark);
+            color: var(--primary-color);
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            border: 3px solid var(--primary-color);
+            border-radius: 15px;
+            background-color: var(--background-light);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #3a3a3a, #1a1a1a);
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+            transition: opacity 0.5s;
+        }
+        .hidden {
+            display: none !important;
+        }
+        #startScreen h1 {
+            font-size: 2.5em;
+            text-shadow: 3px 3px 0px var(--shadow-color-1), -3px -3px 0px var(--shadow-color-2);
+            animation: pulse 1.5s infinite;
+        }
+        #scoreBoard, #livesBoard {
+            position: absolute;
+            top: 20px;
+            font-size: 1.5em;
+            text-shadow: 2px 2px 4px #000;
+            z-index: 5;
+        }
+        #scoreBoard { left: 20px; }
+        #livesBoard { right: 20px; }
+        #winScreen h1, #gameOverScreen h1 {
+            font-size: 2em;
+            color: var(--success-color);
+            text-shadow: 3px 3px 8px #000;
+        }
+         #gameOverScreen h1 { color: var(--danger-color); }
+        .action-button {
+            background: var(--primary-color);
+            color: var(--background-dark);
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1em;
+            margin-top: 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 4px var(--shadow-color-1);
+            transition: all 0.1s;
+        }
+        .action-button:hover {
+            transform: translateY(2px);
+            box-shadow: 0 2px var(--shadow-color-1);
+        }
+        #questScreen {
+            justify-content: flex-end;
+            padding-bottom: 20px;
+        }
+        #quest-portraits-container {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 550px;
+            margin-bottom: 10px;
+        }
+        .quest-portrait {
+            width: 126px;
+            height: 160px;
+            z-index: 11;
+            opacity: 0.7;
+            transition: opacity 0.3s, transform 0.3s;
+            border-radius: 10px;
+        }
+        .quest-portrait.active {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+        .shaking {
+            animation: shake-subtle 0.5s infinite;
+        }
+        #quest-dialogue {
+            position: relative;
+            width: 90%;
+            max-width: 550px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 12;
+            text-align: left;
+        }
+        #dialogue-text {
+            margin-bottom: 15px;
+            min-height: 50px;
+            line-height: 1.4;
+        }
+        #dialogue-options { padding: 0; margin: 0; }
+        #dialogue-options li { list-style: none; padding: 5px 10px; margin: 5px 0; border-radius: 5px; cursor: pointer; }
+        #dialogue-options li.selected { background-color: var(--shadow-color-1); color: var(--background-dark); }
+        #dialogue-hint { text-align: right; color: #aaa; font-size: 0.8em; margin-top: 10px; height: 1em; }
+        #food-popup { position: absolute; font-size: 1em; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 10px; z-index: 20; opacity: 0; transition: opacity 0.5s, transform 0.5s; pointer-events: none; }
+        #leaderboard { width: 350px; padding: 20px; background: rgba(0,0,0,0.9); border: 2px solid var(--primary-color); }
+        #leaderboard h2 { margin-top: 0; }
+        #leaderboard ol { padding-left: 20px; text-align: left; }
+        #leaderboard li { margin-bottom: 5px; }
+        #nickname-input { width: 100px; font-family: 'Press Start 2P', cursive; font-size: 1.5em; text-align: center; background: transparent; border: none; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); outline: none; text-transform: uppercase; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes shake-subtle { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(1px, -1px); } 75% { transform: translate(-1px, 1px); } }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div id="scoreBoard" class="hidden">Длина кока: 0</div>
+        <div id="livesBoard" class="hidden">Жизни: 3</div>
+        <div id="food-popup">Пиздэц я обожрался</div>
+
+        <div id="startScreen" class="overlay">
+            <h1>Федя, нажми Enter!</h1>
+        </div>
+        
+        <div id="questScreen" class="overlay hidden">
+            <div id="quest-portraits-container">
+                <img id="quest-portrait-player" class="quest-portrait" src="image/face/4dialog.png" alt="Player Portrait">
+                <img id="quest-portrait-npc" class="quest-portrait npc" src="image/face/5dialog.png" alt="NPC Portrait">
+            </div>
+            <div id="quest-dialogue">
+                <p id="dialogue-text"></p>
+                <ul id="dialogue-options"></ul>
+                <p id="dialogue-hint"></p>
+            </div>
+        </div>
+
+        <div id="winScreen" class="overlay hidden">
+            <h1>ТВОЙ КОК ДОСТИГ МАКСИМУМА!</h1>
+            <button id="continue-run-btn" class="action-button">Продолжить забег</button>
+            <button id="show-leaderboard-btn" class="action-button">Таблица лидеров</button>
+        </div>
+        
+        <div id="gameOverScreen" class="overlay hidden">
+            <h1 id="gameover-title">Игра окончена!</h1>
+            <div id="leaderboard" class="hidden">
+                <h2>Таблица лидеров</h2>
+                <ol id="leaderboard-list"></ol>
+                <p>Ваш счет: <span id="final-score"></span></p>
+                <p>Введите ник (3 буквы):</p>
+                <input type="text" id="nickname-input" maxlength="3">
+                <button id="submit-score-btn" class="action-button">Сохранить</button>
+            </div>
+             <p id="restart-text">Нажмите Enter, чтобы попробовать снова</p>
+        </div>
+    </div>
+    
+    <audio id="background-music" loop>
+        <source src="audio/1.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // --- Основные настройки ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreBoard = document.getElementById('scoreBoard'), livesBoard = document.getElementById('livesBoard');
+        const startScreen = document.getElementById('startScreen'), questScreen = document.getElementById('questScreen');
+        const winScreen = document.getElementById('winScreen'), gameOverScreen = document.getElementById('gameOverScreen');
+        const backgroundMusic = document.getElementById('background-music'), foodPopup = document.getElementById('food-popup');
+        const playerPortrait = document.getElementById('quest-portrait-player');
+        const npcPortrait = document.getElementById('quest-portrait-npc');
+
+        // --- Состояния игры ---
+        let gameState = 'START';
+        let score = 0, lives = 3, lastTime = 0, speedIncreaseTimer = 0;
+        
+        // --- Настройки баланса ---
+        let gameSpeed = 2.8; // Начальная скорость снижена на 20%
+        const initialGameSpeed = 2.8;
+        const speedIncreaseInterval = 10000; // Увеличиваем скорость каждые 10 секунд
+        const speedIncreaseAmount = 0.15;
+        let nextObstacleIn = 150;
+
+        // --- Переменные для объектов игры ---
+        let obstacles = [];
+        let collectibles = [];
+        let particles = [];
+
+        // --- Ассеты ---
+        const assets = {
+            playerRun: [], playerJump: [],
+            obstacles: {}, potions: {},
+            animatedObstacles: {},
+            background: new Image(), backgroundLayer2: new Image(), pedroBackground: new Image()
+        };
+        let backgroundPattern, backgroundLayer2Pattern;
+        let backgroundX = 0, backgroundX2 = 0;
+
+        // --- Персонаж ---
+        const player = {
+            x: 50, y: canvas.height - 110, width: 55, height: 110,
+            velocityY: 0, gravity: 0.5, jumpPower: -11.5,
+            isJumping: false, jumpCount: 0, maxJumps: 2,
+            animation: 'run', currentFrame: 0, frameCounter: 0, frameDelay: 5,
+            images: assets.playerRun
+        };
+
+        // --- Квест и диалоги ---
+        let dialogueState = 0, selectedOption = 0, isTyping = false, typingInterval;
+        const questDialogues = [
+            { speaker: 'npc', text: "Федя, злой волшебник украл часть твоего кока, чтобы восстановить справедливость, ты должен набрать 100 очков" },
+            { speaker: 'player', options: ["Я обожаю Педро Паскаля!", "Стоячело не в потолок", "Я в одной из вселенных Марвел?"] },
+            { speaker: 'npc', text: "" }, // Пустой для факта о Марвел
+            { speaker: 'npc', text: "Федя, используй двойной прыжок на пробел, иначе кок не увеличить!" } // Подсказка
+        ];
+        const dirtyMarvelFacts = [
+            "Халк однажды порвал штаны так, что это увидела вся башня Мстителей. Тор до сих пор смеется.",
+            "Тони Старк создал один из костюмов Железного человека исключительно для вечеринок, с встроенным дозатором коктейлей.",
+            "Дэдпул считает, что лучшие чимичанги - те, что украдены у Росомахи.",
+            "Реактивный Енот однажды попытался продать ногу Зимнего солдата на черном рынке.",
+            "Человек-муравей уменьшался, чтобы подглядывать в женской раздевалке. Получил по шлему от Осы."
+        ];
+
+        // --- Загрузчик ассетов ---
+        function loadAssets(callback) {
+            const assetPaths = [];
+            for (let i = 1; i <= 7; i++) assetPaths.push({type: 'playerRun', src: `image/Player/run/${i}.png`});
+            for (let i = 1; i <= 6; i++) assetPaths.push({type: 'playerJump', src: `image/Player/jump/${i}.png`});
+            
+            ['Box', 'Barrel', 'Saw', 'Saw bed', 'Spikes on the chain'].forEach(name => {
+                assetPaths.push({type: 'obstacle', name: name, src: `image/Obstacles/${name}.png`});
+            });
+            
+            ['Explosion potion', 'Freezing potion', 'Levitation potion'].forEach(name => {
+                for (let i = 1; i <= 6; i++) {
+                    assetPaths.push({type: 'potion', name: name, src: `image/Potions/${name}/${String(i).padStart(2, '0')}.png`});
+                }
+            });
+
+            // Новые анимированные препятствия
+            for (let i = 0; i <= 6; i++) assetPaths.push({type: 'animatedObstacle', name: 'Spikes', src: `image/Obstacles/Spikes/${i}.png`});
+            for (let i = 1; i <= 8; i++) assetPaths.push({type: 'animatedObstacle', name: 'BulletFire', src: `image/Effects/BulletFire/${String(i).padStart(2, '0')}.png`});
+            for (let i = 1; i <= 16; i++) assetPaths.push({type: 'animatedObstacle', name: 'Explosion', src: `image/Effects/Explosion/${String(i).padStart(2, '0')}.png`});
+
+            assetPaths.push({type: 'background', src: `image/Background/Brick.png`});
+            assetPaths.push({type: 'backgroundLayer2', src: `image/Background/Brick.png`}); // Используем тот же, но можно другой
+            assetPaths.push({type: 'pedroBackground', src: `image/face/6dialog.jpg`});
+            
+            let loadedCount = 0;
+            const totalAssets = assetPaths.length;
+
+            if (totalAssets === 0) { callback(); return; }
+
+            const onLoad = () => {
+                loadedCount++;
+                if (loadedCount >= totalAssets) {
+                    if (assets.background.complete && assets.background.width > 0) {
+                       backgroundPattern = ctx.createPattern(assets.background, 'repeat');
+                    }
+                    if (assets.backgroundLayer2.complete && assets.backgroundLayer2.width > 0) {
+                       ctx.globalAlpha = 0.5;
+                       backgroundLayer2Pattern = ctx.createPattern(assets.backgroundLayer2, 'repeat');
+                       ctx.globalAlpha = 1.0;
+                    }
+                    callback();
+                }
+            };
+            
+            const onError = (e) => {
+                console.error(`ОШИБКА ЗАГРУЗКИ АССЕТА: Не удалось загрузить файл по пути: ${e.target.src}`);
+                onLoad(); 
+            };
+
+            assetPaths.forEach(pathInfo => {
+                const img = new Image();
+                img.onload = onLoad;
+                img.onerror = onError;
+                
+                switch(pathInfo.type) {
+                    case 'playerRun': assets.playerRun.push(img); break;
+                    case 'playerJump': assets.playerJump.push(img); break;
+                    case 'obstacle': assets.obstacles[pathInfo.name] = img; break;
+                    case 'animatedObstacle':
+                        if (!assets.animatedObstacles[pathInfo.name]) assets.animatedObstacles[pathInfo.name] = [];
+                        assets.animatedObstacles[pathInfo.name].push(img);
+                        break;
+                    case 'potion': 
+                        if (!assets.potions[pathInfo.name]) assets.potions[pathInfo.name] = [];
+                        assets.potions[pathInfo.name].push(img);
+                        break;
+                    case 'background': assets.background = img; break;
+                    case 'backgroundLayer2': assets.backgroundLayer2 = img; break;
+                    case 'pedroBackground': assets.pedroBackground = img; break;
+                }
+                img.src = pathInfo.src;
+            });
+            
+            playerPortrait.onerror = () => { playerPortrait.src = 'https://placehold.co/126x160/ff00ff/ffffff?text=F'; };
+            npcPortrait.onerror = () => { npcPortrait.src = 'https://placehold.co/126x160/00ffff/ffffff?text=NPC'; };
+        }
+
+        // --- Звуки ---
+        let audioContext;
+        function playSound(type) {
+            if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            switch(type) {
+                case 'jump': gain.gain.setValueAtTime(0.08, audioContext.currentTime); osc.type = 'square'; osc.frequency.setValueAtTime(440, audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.3); osc.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.3); break;
+                case 'score': gain.gain.setValueAtTime(0.1, audioContext.currentTime); osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.2); break;
+                case 'hit': gain.gain.setValueAtTime(0.15, audioContext.currentTime); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.5); osc.frequency.exponentialRampToValueAtTime(110, audioContext.currentTime + 0.5); break;
+                case 'win': gain.gain.setValueAtTime(0.2, audioContext.currentTime); const winNotes = [523, 659, 783, 1046]; winNotes.forEach((note, i) => osc.frequency.setValueAtTime(note, audioContext.currentTime + i * 0.15)); break;
+            }
+            osc.start();
+            osc.stop(audioContext.currentTime + (type === 'win' ? 1 : 0.5));
+        }
+
+        // --- Управление ---
+        document.addEventListener('keydown', (e) => {
+            const code = e.code;
+            if (isTyping && code === 'Enter') { skipTyping(); return; }
+            if (isTyping) return;
+            
+            switch (gameState) {
+                case 'START': if (code === 'Enter') changeState('QUEST'); break;
+                case 'QUEST': handleQuestInput(code); break;
+                case 'RUNNING': case 'ENDLESS': if (code === 'Space') handleJump(); break;
+                case 'VICTORY': if (code === 'Enter') continueRun(); break;
+                case 'GAMEOVER': if (document.activeElement.id !== 'nickname-input' && code === 'Enter') resetGame(true); break;
+                case 'LEADERBOARD': if (code === 'Enter') changeState('GAMEOVER'); break;
+            }
+        });
+        
+        // --- Основные функции смены состояния ---
+        function changeState(newState) {
+            gameState = newState;
+            [startScreen, questScreen, winScreen, gameOverScreen, scoreBoard, livesBoard].forEach(el => el.classList.add('hidden'));
+            document.getElementById('leaderboard').classList.add('hidden');
+
+            switch (newState) {
+                case 'START': startScreen.classList.remove('hidden'); break;
+                case 'QUEST': questScreen.classList.remove('hidden'); startQuest(); break;
+                case 'RUNNING': case 'ENDLESS':
+                    scoreBoard.classList.remove('hidden');
+                    if(newState === 'ENDLESS') livesBoard.classList.remove('hidden');
+                    startGame();
+                    break;
+                case 'VICTORY': winScreen.classList.remove('hidden'); playSound('win'); break;
+                case 'LEADERBOARD': case 'GAMEOVER': gameOverScreen.classList.remove('hidden'); endGame(); break;
+            }
+        }
+
+        function startQuest() { dialogueState = 0; selectedOption = 0; updateQuestUI(); }
+        function startGame() {
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            audioContext.resume();
+            backgroundMusic.play().catch(()=>{});
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+        function resetGame(fullReset = false) {
+            score = 0; lives = 3; gameSpeed = initialGameSpeed;
+            obstacles = []; collectibles = []; particles = []; nextObstacleIn = 120;
+            player.y = canvas.height - 110; player.velocityY = 0;
+            player.isJumping = false;
+            player.jumpCount = 0; // ИСПРАВЛЕНИЕ: Сброс счетчика прыжков при рестарте
+            player.animation = 'run';
+            player.images = assets.playerRun;
+            canvas.style.backgroundImage = '';
+            canvas.style.backgroundPosition = 'center';
+            document.getElementById('nickname-input').value = '';
+            document.getElementById('nickname-input').disabled = false;
+            document.getElementById('submit-score-btn').disabled = false;
+            if (fullReset) changeState('START');
+        }
+
+        // --- Игровой цикл ---
+        function gameLoop(timestamp) {
+            if (!['RUNNING', 'ENDLESS', 'VICTORY'].includes(gameState)) return;
+            const deltaTime = (timestamp - lastTime) || 0;
+            lastTime = timestamp;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawGround();
+            if (gameState === 'VICTORY') { drawGameScene(); handleFireworks(); }
+            else { updateGame(deltaTime); drawGameScene(); }
+            drawParticles();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateGame(deltaTime) {
+            speedIncreaseTimer += deltaTime;
+            if (speedIncreaseTimer > speedIncreaseInterval) { gameSpeed += speedIncreaseAmount; speedIncreaseTimer = 0; }
+            
+            // Логика игрока
+            player.velocityY += player.gravity;
+            player.y += player.velocityY;
+            if (player.y >= canvas.height - player.height - 10) {
+                player.y = canvas.height - player.height - 10;
+                player.velocityY = 0;
+                if (player.isJumping) {
+                    player.isJumping = false;
+                    player.animation = 'run';
+                    player.images = assets.playerRun;
+                    player.currentFrame = 0;
+                }
+                player.jumpCount = 0;
+            }
+            
+            // Анимация игрока
+            player.frameCounter++;
+            if (player.frameCounter >= player.frameDelay) {
+                if (player.images.length > 0) {
+                    player.currentFrame = (player.currentFrame + 1) % player.images.length;
+                }
+                player.frameCounter = 0;
+            }
+
+            updateObstacles();
+            updateCollectibles();
+            updateParticles();
+            
+            scoreBoard.textContent = `Длина кока: ${score}`;
+            if(gameState === 'ENDLESS') livesBoard.textContent = `Жизни: ${'❤️'.repeat(lives)}`;
+            
+            if (score >= 100 && gameState === 'RUNNING') {
+                changeState('VICTORY');
+            }
+        }
+
+        // --- Отрисовка ---
+        function drawBackground() {
+            if (canvas.style.backgroundImage) { return; }
+            
+            // Слой параллакса (дальний)
+            if(backgroundLayer2Pattern) {
+                ctx.save();
+                ctx.globalAlpha = 0.5;
+                ctx.fillStyle = backgroundLayer2Pattern;
+                backgroundX2 -= gameSpeed / 4; // Двигается медленнее
+                if (assets.backgroundLayer2.width > 0 && backgroundX2 <= -assets.backgroundLayer2.width) {
+                    backgroundX2 = 0;
+                }
+                ctx.translate(backgroundX2, 0);
+                ctx.fillRect(0, 0, canvas.width + assets.backgroundLayer2.width, canvas.height);
+                ctx.restore();
+            }
+
+            // Основной фон (ближний)
+            if(backgroundPattern) {
+                ctx.save();
+                ctx.fillStyle = backgroundPattern;
+                backgroundX -= gameSpeed / 2;
+                if (assets.background.width > 0 && backgroundX <= -assets.background.width) {
+                    backgroundX = 0;
+                }
+                ctx.translate(backgroundX, 0);
+                ctx.fillRect(0, 0, canvas.width + assets.background.width, canvas.height);
+                ctx.restore();
+            }
+        }
+        function drawGround() { ctx.fillStyle = '#4a4a4a'; ctx.fillRect(0, canvas.height - 10, canvas.width, 10); }
+        function drawGameScene() {
+            drawObstacles();
+            drawCollectibles();
+            if (player.images && player.images.length > 0 && player.images[player.currentFrame]) {
+                const currentImage = player.images[player.currentFrame];
+                if (currentImage && currentImage.complete && currentImage.naturalWidth > 0) {
+                    ctx.drawImage(currentImage, player.x, player.y, player.width, player.height);
+                }
+            }
+        }
+        
+        // --- Логика квеста ---
+        function typewriter(text, element, callback) {
+            if (isTyping) { clearInterval(typingInterval); }
+            isTyping = true;
+            let i = 0;
+            element.textContent = '';
+            typingInterval = setInterval(() => {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                } else {
+                    clearInterval(typingInterval);
+                    isTyping = false;
+                    if (callback) callback();
+                }
+            }, 50);
+        }
+
+        function skipTyping() {
+            if (!isTyping) return;
+            clearInterval(typingInterval);
+            const dialogue = questDialogues[dialogueState];
+            document.getElementById('dialogue-text').textContent = dialogue.text;
+            isTyping = false;
+            const hintEl = document.getElementById('dialogue-hint');
+            if (dialogueState === 0 || dialogueState === 2 || dialogueState === 3) {
+                hintEl.textContent = 'Нажмите Enter для продолжения...';
+            }
+        }
+
+        function handleQuestInput(code) {
+            if (isTyping) return;
+            const optionsList = document.getElementById('dialogue-options').children;
+            if (optionsList.length === 0 && (code === 'Enter' || code === 'Space')) { selectQuestOption(); return; }
+            if (code === 'ArrowDown') selectedOption = (selectedOption + 1) % optionsList.length;
+            else if (code === 'ArrowUp') selectedOption = (selectedOption - 1 + optionsList.length) % optionsList.length;
+            else if (code === 'Enter' || code === 'Space') selectQuestOption();
+            updateQuestUI();
+        }
+        
+        function updateQuestUI() {
+            const dialogue = questDialogues[dialogueState];
+            const dialogueTextEl = document.getElementById('dialogue-text');
+            const dialogueOptionsEl = document.getElementById('dialogue-options');
+            const hintEl = document.getElementById('dialogue-hint');
+            
+            dialogueOptionsEl.innerHTML = '';
+            playerPortrait.classList.remove('shaking', 'active');
+            npcPortrait.classList.remove('shaking', 'active');
+            hintEl.textContent = '';
+
+            if (dialogue.speaker === 'npc') {
+                npcPortrait.classList.add('active', 'shaking');
+                typewriter(dialogue.text, dialogueTextEl, () => {
+                    npcPortrait.classList.remove('shaking');
+                    if (dialogueState === 0 || dialogueState === 2 || dialogueState === 3) hintEl.textContent = 'Нажмите Enter для продолжения...';
+                });
+            } else {
+                playerPortrait.classList.add('active', 'shaking');
+                dialogueTextEl.textContent = '';
+                dialogue.options.forEach((opt, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = `> ${opt}`;
+                    if (index === selectedOption) li.classList.add('selected');
+                    dialogueOptionsEl.appendChild(li);
+                });
+                hintEl.textContent = '↑/↓ и Enter для выбора';
+            }
+        }
+        
+        // ИСПРАВЛЕННАЯ ЛОГИКА ДИАЛОГА
+        function selectQuestOption() {
+            // Сначала обрабатываем переход к следующему состоянию диалога
+            if (dialogueState === 0) { // После первого сообщения NPC
+                dialogueState = 1;
+            } else if (dialogueState === 1) { // После выбора игрока
+                switch (selectedOption) {
+                    case 0: // Педро Паскаль
+                        if (assets.pedroBackground.complete && assets.pedroBackground.naturalWidth > 0) {
+                            canvas.style.backgroundImage = `url('${assets.pedroBackground.src}')`;
+                            canvas.style.backgroundSize = 'cover';
+                            canvas.style.backgroundRepeat = 'no-repeat';
+                            canvas.style.backgroundPosition = 'center 30%';
+                        }
+                        dialogueState = 3; // Переходим к подсказке
+                        break;
+                    case 1: // Стоячело
+                        canvas.style.backgroundImage = '';
+                        dialogueState = 3; // Переходим к подсказке
+                        break;
+                    case 2: // Марвел
+                        dialogueState = 2;
+                        const fact = dirtyMarvelFacts[Math.floor(Math.random() * dirtyMarvelFacts.length)];
+                        questDialogues[2].text = "Нет, но держи интересный факт: " + fact;
+                        break;
+                }
+            } else if (dialogueState === 2) { // После факта о Марвел
+                dialogueState = 3; // Переходим к подсказке
+            } else if (dialogueState === 3) { // После подсказки
+                changeState('RUNNING'); // Начинаем игру
+                return; // ВАЖНО: Выходим, чтобы не вызывать updateQuestUI
+            }
+            
+            // Обновляем UI только если игра еще не началась
+            updateQuestUI();
+        }
+
+        // --- Логика столкновений и бонусов ---
+        function handleJump() {
+            if (player.jumpCount < player.maxJumps) {
+                 player.isJumping = true;
+                 player.velocityY = player.jumpPower;
+                 player.jumpCount++;
+                 player.animation = 'jump';
+                 player.images = assets.playerJump;
+                 player.currentFrame = 0;
+                 playSound('jump');
+            }
+        }
+        
+        // --- Препятствия ---
+        function createObstacle() {
+            const obstacleTypes = [
+                ...Object.keys(assets.obstacles), 
+                ...Object.keys(assets.animatedObstacles)
+            ];
+            const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+            
+            let obs = { x: canvas.width, passed: false, type: type };
+            let img, isAnimated = false;
+            let frames = [];
+
+            if (assets.animatedObstacles[type]) {
+                frames = assets.animatedObstacles[type];
+                img = frames[0];
+                isAnimated = true;
+            } else {
+                img = assets.obstacles[type];
+            }
+
+            if (!img || !img.complete || img.naturalWidth === 0) return;
+
+            const scale = (img.width > 100 || img.height > 100) ? 0.5 : 1;
+            obs.width = img.width * scale;
+            obs.height = img.height * scale;
+            obs.y = canvas.height - obs.height - 10;
+            obs.isAnimated = isAnimated;
+            obs.frames = frames;
+            obs.currentFrame = 0;
+            obs.frameDelay = 4;
+            obs.frameCounter = 0;
+
+            // Специальная логика для разных типов
+            if (type === 'BulletFire') {
+                obs.y = canvas.height - 10 - Math.random() * 150; // Летит на разной высоте
+            } else if (type === 'Spikes on the chain' || type === 'Saw') {
+                if (Math.random() < 0.3) { // 30% шанс появиться сверху
+                    obs.y = 0;
+                    obs.flipped = true;
+                }
+            } else if (type === 'Explosion') {
+                obs.frameDelay = 2; // Взрыв быстрее
+                obs.triggered = false;
+            }
+
+            obstacles.push(obs);
+            nextObstacleIn = Math.floor(Math.max(70, 200 - gameSpeed * 10) + Math.random() * 50);
+        }
+
+        function updateObstacles() {
+            nextObstacleIn--;
+            if (nextObstacleIn <= 0) {
+                createObstacle();
+            }
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.x -= gameSpeed;
+
+                // Анимация
+                if (obs.isAnimated) {
+                    obs.frameCounter++;
+                    if (obs.frameCounter >= obs.frameDelay) {
+                        obs.currentFrame = (obs.currentFrame + 1);
+                        if(obs.currentFrame >= obs.frames.length) {
+                             if (obs.type === 'Explosion' && obs.triggered) {
+                                obstacles.splice(i, 1); // Удаляем после взрыва
+                                continue;
+                             }
+                             obs.currentFrame = 0; // Зацикливаем
+                        }
+                        obs.frameCounter = 0;
+                    }
+                }
+                
+                // Триггер для взрыва
+                if (obs.type === 'Explosion' && !obs.triggered && obs.x < player.x + 200) {
+                    obs.triggered = true;
+                    obs.currentFrame = 0; // Начинаем анимацию взрыва
+                }
+
+                if (obs.x + obs.width < player.x && !obs.passed) { 
+                    score++; 
+                    obs.passed = true; 
+                    playSound('score'); 
+                }
+                if (obs.x + obs.width < 0) { 
+                    obstacles.splice(i, 1); 
+                    continue; 
+                }
+
+                // Проверка столкновения
+                if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+                    playSound('hit');
+                    createHitParticles(player.x + player.width / 2, player.y + player.height / 2);
+                    if (gameState === 'ENDLESS') { 
+                        lives--; 
+                        obstacles.splice(i, 1); 
+                        if (lives <= 0) changeState('GAMEOVER'); 
+                    } else {
+                        changeState('GAMEOVER');
+                    }
+                }
+            }
+        }
+        
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                let img;
+                if(obs.isAnimated) {
+                    img = obs.frames[obs.currentFrame];
+                } else {
+                    img = assets.obstacles[obs.type];
+                }
+
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.save();
+                    if (obs.flipped) {
+                        ctx.translate(obs.x + obs.width / 2, obs.y + obs.height / 2);
+                        ctx.scale(1, -1);
+                        ctx.drawImage(img, -obs.width / 2, -obs.height / 2, obs.width, obs.height);
+                    } else {
+                        ctx.drawImage(img, obs.x, obs.y, obs.width, obs.height);
+                    }
+                    ctx.restore();
+                }
+            });
+        }
+
+        function updateCollectibles() {
+             if (Math.random() < 0.003) { 
+                 const potionKeys = Object.keys(assets.potions);
+                 if (potionKeys.length === 0) return;
+                 const potionType = potionKeys[Math.floor(Math.random() * potionKeys.length)];
+                 collectibles.push({
+                     x: canvas.width, y: canvas.height - 150 - Math.random() * 50,
+                     height: 40, width: 40,
+                     points: 5,
+                     type: potionType,
+                     frame: 0
+                 });
+            }
+            for (let i = collectibles.length - 1; i >= 0; i--) {
+                const col = collectibles[i];
+                col.x -= gameSpeed;
+                if (col.x + col.width < 0) { collectibles.splice(i, 1); continue; }
+                if (player.x < col.x + col.width && player.x + player.width > col.x && player.y < col.y + col.height && player.y + player.height > col.y) {
+                    score += col.points; playSound('score'); showFoodPopup(); collectibles.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawCollectibles() {
+            collectibles.forEach(col => {
+                const anim = assets.potions[col.type];
+                if (anim && anim.length > 0) {
+                    col.frame = (col.frame + 0.2) % anim.length;
+                    const img = anim[Math.floor(col.frame)];
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        ctx.drawImage(img, col.x, col.y, col.width, col.height);
+                    }
+                }
+            });
+        }
+
+        function showFoodPopup() {
+            foodPopup.style.left = `${player.x}px`; foodPopup.style.top = `${player.y - 40}px`;
+            foodPopup.style.opacity = 1; foodPopup.style.transform = 'translateY(-20px)';
+            setTimeout(() => { foodPopup.style.opacity = 0; foodPopup.style.transform = 'translateY(0)'; }, 1000);
+        }
+        
+        // --- Победа, поражение, таблица лидеров ---
+        document.getElementById('continue-run-btn').onclick = continueRun;
+        document.getElementById('show-leaderboard-btn').onclick = () => { changeState('LEADERBOARD'); showLeaderboard(true); };
+        document.getElementById('submit-score-btn').onclick = saveScore;
+        function continueRun() { 
+            lives = 1; // Только одна жизнь для бесконечного режима
+            changeState('ENDLESS'); 
+        }
+        function winGame() { if(!backgroundMusic.paused) backgroundMusic.pause(); changeState('VICTORY'); }
+        function endGame() { if(!backgroundMusic.paused) backgroundMusic.pause(); showLeaderboard(); }
+        function showLeaderboard(forceShow = false) {
+            if (forceShow || score >= 100 || gameState === 'ENDLESS') {
+                document.getElementById('leaderboard').classList.remove('hidden');
+                document.getElementById('restart-text').classList.add('hidden');
+                document.getElementById('final-score').textContent = score;
+                if(gameState === 'LEADERBOARD') document.getElementById('gameover-title').textContent = "Рекорды";
+                else document.getElementById('gameover-title').textContent = "Игра окончена!";
+                displayLeaderboard();
+            } else {
+                 document.getElementById('leaderboard').classList.add('hidden');
+                 document.getElementById('restart-text').classList.remove('hidden');
+            }
+        }
+        function saveScore() {
+            const nickname = document.getElementById('nickname-input').value.toUpperCase();
+            if (nickname.length !== 3) return;
+            const scores = JSON.parse(localStorage.getItem('fedor-runner-scores')) || [];
+            scores.push({ name: nickname, score: score });
+            scores.sort((a, b) => b.score - a.score);
+            localStorage.setItem('fedor-runner-scores', JSON.stringify(scores.slice(0, 5)));
+            displayLeaderboard();
+            document.getElementById('nickname-input').disabled = true;
+            document.getElementById('submit-score-btn').disabled = true;
+            document.getElementById('restart-text').classList.remove('hidden');
+        }
+        function displayLeaderboard() {
+            const scores = JSON.parse(localStorage.getItem('fedor-runner-scores')) || [];
+            const listEl = document.getElementById('leaderboard-list');
+            listEl.innerHTML = '';
+            if (scores.length === 0) { listEl.innerHTML = "<li>Рекордов пока нет</li>"; }
+            else { scores.forEach(s => { const li = document.createElement('li'); li.textContent = `${s.name} - ${s.score}`; listEl.appendChild(li); }); }
+        }
+        
+        // --- Частицы ---
+        function createHitParticles(x, y) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y, `hsl(${Math.random() * 50 + 10}, 100%, 50%)`, 2));
+            }
+        }
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        function drawParticles() {
+            particles.forEach(p => p.draw());
+        }
+        
+        let fireworks = [];
+        function handleFireworks() {
+            if (Math.random() < 0.05) {
+                const x = Math.random() * canvas.width, y = Math.random() * canvas.height / 2, hue = Math.random() * 360;
+                for (let i = 0; i < 30; i++) fireworks.push(new Particle(x, y, `hsl(${hue}, 100%, 50%)`, 3));
+                if (Math.random() < 0.5) fireworks.push(new FlyingIcon(x, y));
+            }
+            ctx.globalCompositeOperation = 'lighter';
+            fireworks.forEach((p, i) => { p.update(); p.draw(); if (p.alpha <= 0) fireworks.splice(i, 1); });
+            ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        }
+
+        class Particle {
+            constructor(x, y, color, size) { 
+                this.x = x; this.y = y; this.color = color;
+                this.size = Math.random() * size + 1; 
+                this.speedX = Math.random() * 6 - 3; 
+                this.speedY = Math.random() * 6 - 3; 
+                this.alpha = 1; 
+                this.decay = Math.random() * 0.02 + 0.015; 
+            }
+            update() { this.x += this.speedX; this.y += this.speedY; this.speedY += 0.05; this.alpha -= this.decay; }
+            draw() { ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); }
+        }
+        class FlyingIcon {
+            constructor(x, y) { this.x = x; this.y = y; this.emoji = Math.random() > 0.5 ? '💨' : '🍔'; this.size = 40; this.speedX = Math.random() * 4 - 2; this.speedY = Math.random() * -5 - 2; this.alpha = 1; this.decay = 0.01; this.rotation = 0; this.rotationSpeed = Math.random() * 0.1 - 0.05; }
+            update() { this.x += this.speedX; this.y += this.speedY; this.speedY += 0.1; this.alpha -= this.decay; this.rotation += this.rotationSpeed; }
+            draw() { ctx.globalAlpha = this.alpha; ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.font = `${this.size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.emoji, 0, 0); ctx.restore(); }
+        }
+        
+        // Начало
+        loadAssets(() => {
+            resetGame();
+            changeState('START');
+        });
+    </script>
+</body>
+</html>
